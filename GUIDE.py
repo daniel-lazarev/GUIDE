@@ -4,7 +4,7 @@
 def guide(betas, L=100):
     import numpy as np
     from sklearn.decomposition import FastICA
-    T = min(betas.shape)
+    M = max(betas.shape)
     
     betas_m = betas - np.mean(betas, axis = 0)
     betas_m = betas_m - np.mean(betas_m, axis = 1)[:,np.newaxis]   # mean centering the sum stats
@@ -18,7 +18,7 @@ def guide(betas, L=100):
     
     ica = FastICA(max_iter=10000, tol=0.000001) #, random_state = 1)
 
-    W_XL, W_LT_t = np.split(ica.fit_transform(UVc) * np.sqrt(2), [T])
+    W_XL, W_LT_t = np.split(ica.fit_transform(UVc) * np.sqrt(2), [M])
     W_LT = W_LT_t.T
     mix = ica.mixing_
     
