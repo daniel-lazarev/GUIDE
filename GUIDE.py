@@ -1,9 +1,6 @@
 # GUIDE model given an M x T matrix of summary statistics (`betas'), where M = number of genetic variants
 # and T is the number of traits
 
-# import numpy as np
-# from sklearn.decomposition import FastICA
-
 def guide(betas, L=100):
     import numpy as np
     from sklearn.decomposition import FastICA
