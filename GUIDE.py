@@ -23,3 +23,35 @@ def guide(betas, L=100):
     mix = ica.mixing_
     
     return W_XL, W_LT, Sc, mix
+
+# Computing the contribution scores given GUIDE weights
+def contrib(W):         
+    M = max(W.shape)
+    K = min(W.shape)
+
+    if W.shape[0] == M:     # ensure W is K x M
+        W = W.T
+    W_var = W**2
+
+    W_var_sort = np.zeros((K,M))
+    
+    for i in range(K):
+        W_var_sort[i,:] = np.sort(W_var[i,:])[::-1]
+    W_var_cum=np.cumsum(W_var_sort,axis=1)/np.sum(W_var_sort,axis=1)[:,np.newaxis]
+
+    return W_var_sort, W_var_cum
+
+# Computing the genetic variance components given GUIDE weights
+# Note: inputing W_XL computes the L->T variance components (and vice versa, with W_LT corresponding to X->L); see preprint for more details
+def var_comp(betas,W):
+    M = max(W.shape)
+    if W.shape[1] == M:     # ensure W is M x K
+        W = W.T
+    
+    if betas.shape[0] == M:
+        G = betas.T @ W
+    else:
+        G = betas @ W
+    var_comp = (G**2).T/np.sum(G**2,axis=1)
+    var_comp = var_comp.T
+    return var_comp
