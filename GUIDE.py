@@ -25,7 +25,8 @@ def guide(betas, L=100):
     return W_XL, W_LT, Sc, mix
 
 # Computing the contribution scores given GUIDE weights
-def contrib(W):         
+def contrib(W):  
+    import numpy as np
     M = max(W.shape)
     K = min(W.shape)
 
@@ -44,6 +45,7 @@ def contrib(W):
 # Computing the genetic variance components given GUIDE weights
 # Note: inputing W_XL computes the L->T variance components (and vice versa, with W_LT corresponding to X->L); see preprint for more details
 def var_comp(betas,W):
+    import numpy as np
     M = max(W.shape)
     if W.shape[1] == M:     # ensure W is M x K
         W = W.T
