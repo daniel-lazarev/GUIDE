@@ -57,3 +57,91 @@ def var_comp(betas,W):
     var_comp = (G**2).T/np.sum(G**2,axis=1)
     var_comp = var_comp.T
     return var_comp
+
+def logp_vals(data, W_XL, W_LT, top_L=3, iters=1000):    # compute -log10(p-values) for every trait given variance contributions of top_L latents
+    import numpy as np
+    import scipy.stats as ss
+
+    L,T = W_LT.shape
+    
+    varcomp_LT_GUIDE = var_comp(data,W_XL)
+    
+    varcomp_LT_GUIDE_list = []
+    for t in range(T):
+            varcomp_LT = np.sum(np.sort(varcomp_LT_GUIDE[t])[::-1][:top_L])
+            varcomp_LT_GUIDE_list.append(varcomp_LT)
+    
+    var_comp_iters = []
+    
+    for i in range(iters):
+        rotate_i = ss.ortho_group.rvs(L)       # rotation (orthogonal) matrix 
+        W_LT_var_comp_i = var_comp(data,W_XL@rotate_i)
+        
+        varcomp_LT_list = []
+        for t in range(T):
+            varcomp_LT = np.sum(np.sort(W_LT_var_comp_i[t])[::-1][:top_L])
+            varcomp_LT_list.append(varcomp_LT)
+        var_comp_iters.append(varcomp_LT_list)
+    
+    var_comp_iters = np.array(var_comp_iters)
+    
+    log10p_list = []
+    for trait in range(T):
+        mean_T = np.mean(var_comp_iters.T[trait])
+        std_T = np.std(var_comp_iters.T[trait])
+        ln_p = -ss.norm(mean_T, std_T).logsf(varcomp_LT_GUIDE_list[trait])
+        log10_p = ln_p/np.log(10)
+        log10p_list.append(log10_p)
+        
+    return log10p_list
+
+
+def logp_vals_mat(data, W_XL, W_LT, iters=100):    # M x L and T x L matrices containing -log10(p-values) for every pair of variant/trait and latent
+    import numpy as np
+    import scipy.stats as ss
+    M,L = W_XL.shape
+    T = W_LT.shape[1]
+    
+    varcomp_LT_GUIDE = var_comp(data,W_XL)
+    varcomp_XL_GUIDE = var_comp(data,W_LT)
+    
+    W_IXL_var = []       # iters x M x L tensor
+    W_ITL_var = []       # iters x T x L tensor
+
+    for i in range(iters):        # every iteration is a different possible decomposition
+        rotate_i = ss.ortho_group.rvs(L)       # rotation (orthogonal) matrix 
+        W_LT_var_comp_i = var_comp(data,W_XL@rotate_i)
+        W_XL_var_comp_i = var_comp(data,rotate_i.T@W_LT)
+
+        W_ITL_var.append(W_LT_var_comp_i)
+        W_IXL_var.append(W_XL_var_comp_i)
+   
+    W_IXL_var = np.array(W_IXL_var)
+    W_ITL_var = np.array(W_ITL_var)
+    
+    logp_mat_XL = []
+    logp_mat_TL = []
+
+    for m in range(M):
+        log10p_list = []
+        for l in range(L):
+            mean = np.mean(W_IXL_var[:,m,l])
+            std = np.std(W_IXL_var[:,m,l])
+            ln_p = -ss.norm(mean, std).logsf(varcomp_XL_GUIDE[m,l])
+            log10_p = ln_p/np.log(10)
+            log10p_list.append(log10_p)        
+        logp_mat_XL.append(log10p_list)
+    logp_mat_XL = np.array(logp_mat_XL)
+    
+    for t in range(T):
+        log10p_list = []
+        for l in range(L):
+            mean = np.mean(W_ITL_var[:,t,l])
+            std = np.std(W_ITL_var[:,t,l])
+            ln_p = -ss.norm(mean, std).logsf(varcomp_LT_GUIDE[t,l])
+            log10_p = ln_p/np.log(10)
+            log10p_list.append(log10_p)    
+        logp_mat_TL.append(log10p_list)
+    logp_mat_TL = np.array(logp_mat_TL)
+    
+    return logp_mat_XL, logp_mat_TL
