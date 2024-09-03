@@ -5,7 +5,10 @@ def guide(betas, L=100):
     import numpy as np
     from sklearn.decomposition import FastICA
     M = max(betas.shape)
-    
+
+    if betas_m.shape[1] == M:     # ensure betas is M x T
+        betas_m = betas_m.T
+        
     betas_m = betas - np.mean(betas, axis = 0)
     betas_m = betas_m - np.mean(betas_m, axis = 1)[:,np.newaxis]   # mean centering the sum stats
     
