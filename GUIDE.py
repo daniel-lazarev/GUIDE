@@ -61,42 +61,7 @@ def var_comp(betas,W):
     var_comp = var_comp.T
     return var_comp
 
-def logp_vals(data, W_XL, W_LT, top_L=3, iters=1000):    # compute -log10(p-values) for every trait given variance contributions of top_L latents
-    import numpy as np
-    import scipy.stats as ss
 
-    L,T = W_LT.shape
-    
-    varcomp_LT_GUIDE = var_comp(data,W_XL)
-    
-    varcomp_LT_GUIDE_list = []
-    for t in range(T):
-            varcomp_LT = np.sum(np.sort(varcomp_LT_GUIDE[t])[::-1][:top_L])
-            varcomp_LT_GUIDE_list.append(varcomp_LT)
-    
-    var_comp_iters = []
-    
-    for i in range(iters):
-        rotate_i = ss.ortho_group.rvs(L)       # rotation (orthogonal) matrix 
-        W_LT_var_comp_i = var_comp(data,W_XL@rotate_i)
-        
-        varcomp_LT_list = []
-        for t in range(T):
-            varcomp_LT = np.sum(np.sort(W_LT_var_comp_i[t])[::-1][:top_L])
-            varcomp_LT_list.append(varcomp_LT)
-        var_comp_iters.append(varcomp_LT_list)
-    
-    var_comp_iters = np.array(var_comp_iters)
-    
-    log10p_list = []
-    for trait in range(T):
-        mean_T = np.mean(var_comp_iters.T[trait])
-        std_T = np.std(var_comp_iters.T[trait])
-        ln_p = -ss.norm(mean_T, std_T).logsf(varcomp_LT_GUIDE_list[trait])
-        log10_p = ln_p/np.log(10)
-        log10p_list.append(log10_p)
-        
-    return log10p_list
 
 def logp_mat(data, W_XL, W_LT):
     import numpy as np
@@ -257,7 +222,8 @@ def entropy_plot(betas, L_start=1, L_stop=100, metric='contrib'):      # L_start
     return ent_XL_GUIDE, ent_LT_GUIDE, ent_XL_SVD, ent_LT_SVD, bad_L, bad_L_diff
 
 
-
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Functions below are not routinely used for analyses with GUIDE and are included in case they may be helpful in some applications
 
 #Monte Carlo approach for computing the p-values. Included for comparison with the closed-form approach. 
 # For applications, use logp_mat, which provides the closed-form solution
@@ -311,3 +277,40 @@ def logp_vals_MC(data, W_XL, W_LT, iters=100):    # M x L and T x L matrices con
     
     return logp_mat_XL, logp_mat_TL
 
+# computes a p-value (using the Monte Carlo method vs. the closed form above) for every trait based on the contribution of the top_L latent factors 
+def logp_vals_MC(data, W_XL, W_LT, top_L=3, iters=1000):    # compute -log10(p-values) for every trait given variance contributions of top_L latents
+    import numpy as np
+    import scipy.stats as ss
+
+    L,T = W_LT.shape
+    
+    varcomp_LT_GUIDE = var_comp(data,W_XL)
+    
+    varcomp_LT_GUIDE_list = []
+    for t in range(T):
+            varcomp_LT = np.sum(np.sort(varcomp_LT_GUIDE[t])[::-1][:top_L])
+            varcomp_LT_GUIDE_list.append(varcomp_LT)
+    
+    var_comp_iters = []
+    
+    for i in range(iters):
+        rotate_i = ss.ortho_group.rvs(L)       # rotation (orthogonal) matrix 
+        W_LT_var_comp_i = var_comp(data,W_XL@rotate_i)
+        
+        varcomp_LT_list = []
+        for t in range(T):
+            varcomp_LT = np.sum(np.sort(W_LT_var_comp_i[t])[::-1][:top_L])
+            varcomp_LT_list.append(varcomp_LT)
+        var_comp_iters.append(varcomp_LT_list)
+    
+    var_comp_iters = np.array(var_comp_iters)
+    
+    log10p_list = []
+    for trait in range(T):
+        mean_T = np.mean(var_comp_iters.T[trait])
+        std_T = np.std(var_comp_iters.T[trait])
+        ln_p = -ss.norm(mean_T, std_T).logsf(varcomp_LT_GUIDE_list[trait])
+        log10_p = ln_p/np.log(10)
+        log10p_list.append(log10_p)
+        
+    return log10p_list
