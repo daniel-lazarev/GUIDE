@@ -98,8 +98,170 @@ def logp_vals(data, W_XL, W_LT, top_L=3, iters=1000):    # compute -log10(p-valu
         
     return log10p_list
 
+def logp_mat(data, W_XL, W_LT):
+    import numpy as np
+    from scipy import stats
+    M, L = W_XL.shape
+    T = W_LT.shape[1]
 
-def logp_vals_mat(data, W_XL, W_LT, iters=100):    # M x L and T x L matrices containing -log10(p-values) for every pair of variant/trait and latent
+    # Compute variance contributions
+    varcomp_LT_GUIDE = var_comp(data, W_XL)
+    varcomp_XL_GUIDE = var_comp(data, W_LT)
+
+    # Compute p-values using closed-form beta distribution
+    logp_mat_XL = []
+    logp_mat_TL = []
+
+    for m in range(M):
+        log10p_list = []
+        for l in range(L):
+            s_obs = varcomp_XL_GUIDE[m, l]
+            p_val = stats.beta(1/2, (L-1)/2).sf(s_obs)
+            log10_p = -np.log10(p_val) if p_val > 0 else np.inf
+            log10p_list.append(log10_p)
+        logp_mat_XL.append(log10p_list)
+    logp_mat_XL = np.array(logp_mat_XL)
+
+    for t in range(T):
+        log10p_list = []
+        for l in range(L):
+            s_obs = varcomp_LT_GUIDE[t, l]
+            p_val = stats.beta(1/2, (L-1)/2).sf(s_obs)
+            log10_p = -np.log10(p_val) if p_val > 0 else np.inf
+            log10p_list.append(log10_p)
+        logp_mat_TL.append(log10p_list)
+    logp_mat_TL = np.array(logp_mat_TL)
+
+    return logp_mat_XL, logp_mat_TL
+
+
+# automatic inference based on -logp values. Can also use the contribution scores or variance components as inputs instead of the logp matrices
+
+def guide_infer(logp_mat_XL,logp_mat_TL, thr_T = 10, thr_L = 10, thr_X = 10): 
+    import numpy as np
+
+    L = min(logp_mat_TL.shape)
+
+    sort_logp_TL = np.sort(logp_mat_TL,axis=1)
+    max_logp_TL = sort_logp_TL.T[-1]                               # list of highest logp_TL value for every trait
+    sig_trait_logp = [x for x in max_logp_TL if x>thr_T]                 # traits with significant p-values in given GUIDE model
+    sig_trait_idx = idx_from_var_list(sig_trait_logp,logp_mat_TL)  # indices of those traits
+    sig_logp_mat_TL = logp_mat_TL[sig_trait_idx,:]                 # sub-matrix of logp_TL for those traits only
+
+    sig_lat_idx = []
+    sig_vars_idx = []
+    sig_lat_logp = []
+    sig_vars_logp = []
+    for i in range(sig_logp_mat_TL.shape[0]):
+        sig_logp_vals = [x for x in sig_logp_mat_TL[i] if x>thr_L]
+        sig_lat_logp.append(sig_logp_vals)
+        idx_list = idx_from_var_list(sig_logp_vals,sig_logp_mat_TL[i])      # significant latents for every trait with significant p-vals
+        sig_lat_idx.append( idx_list )
+    
+    for j in range(L):                                           # every significant variant for every latent
+            sig_logp_vals2 = [x for x in logp_mat_XL[:,j] if x>thr_X]
+            sig_vars_logp.append(sig_logp_vals2)
+            idx_list2 = idx_from_var_list(sig_logp_vals2,logp_mat_XL[:,j])   # significant variants for every latent with signficant p-vals
+            sig_vars_idx.append(idx_list2)
+
+    
+    # returns list of significant traits for each latent, as computed by guide_infer
+    # list given for every latent, so empty list signifies no significant traits for that latent with the given significance threshold
+    def traits_per_sig_lat(sig_lat_idx, sig_trait_idx,L=100):     
+        traits_for_lat = []
+        for lat in range(L):
+            sig_trait_per_lat = []
+            for i,x in enumerate(sig_lat_idx):
+                for j in range(len(x)):
+                    if x[j]==lat:
+                        sig_trait_per_lat.append(sig_trait_idx[i])
+            traits_for_lat.append(sig_trait_per_lat) 
+        return traits_for_lat
+        
+    traits_per_lat = traits_per_sig_lat(sig_lat_idx, sig_trait_idx,L=L)
+    
+    return traits_per_lat, sig_trait_idx, sig_lat_idx, sig_vars_idx, sig_trait_logp, sig_lat_logp, sig_vars_logp   
+    # returns list of significant traits for every latent, and the indices of statistically significant traits, latents for those traits, and 
+    # variants for those latents, as well as their corresponding -log10(p) values
+
+
+
+# plot the entropy of the weights for all models with num of latent factors between L_start and L_stop
+def entropy_plot(betas, L_start=1, L_stop=100, metric='contrib'):      # L_start, L_stop = values of numbers of latent factors, metric can be 
+                                                                       # 'contrib' or 'var_comp'
+    import numpy as np
+    from sklearn.decomposition import FastICA
+    import scipy.stats as ss
+    
+    M = max(betas.shape)
+    T = min(betas.shape)
+    betas_m = betas
+    if betas_m.shape[1] == M:     # ensure betas is M x T
+        betas_m = betas_m.T  
+    betas_m = betas - np.mean(betas, axis = 0)
+    betas_m = betas_m - np.mean(betas_m, axis = 1)[:,np.newaxis]   # mean centering the sum stats
+
+    U, S, Vt = np.linalg.svd(betas_m, full_matrices=False)       # full SVD of betas
+
+    ent_XL_GUIDE =[]
+    ent_XL_SVD = []
+    ent_LT_GUIDE =[]
+    ent_LT_SVD = []
+    bad_L = []
+    bad_L_diff = []
+    
+    if metric=='contrib':
+       for i in range(L_start,L_stop+1):
+            Uc_i = U[:, :i]
+            Vc_i = Vt[:i, :]
+            UVc_i = np.concatenate((Uc_i, Vc_i.T)) * np.sqrt((M+T)/2)
+            ica = FastICA(max_iter=10000, tol=0.000001) #, random_state = 1)
+
+            Xc_i, Yt_rec_i = np.split(ica.fit_transform(UVc_i) / np.sqrt((M+T)/2), [M])
+            Yc_i = Yt_rec_i.T
+        
+            if np.allclose(i, np.sum(Xc_i.T@Xc_i)) == False:
+                bad_L.append(i)
+                bad_L_diff.append(i-np.sum(Xc_i.T@Xc_i))
+            
+            ent_XL_GUIDE.insert(i,sum(ss.entropy(Xc_i**2)))
+            ent_XL_SVD.insert(i,sum(ss.entropy( Uc_i**2  )))
+
+            ent_LT_GUIDE.insert(i,sum(ss.entropy(Yc_i.T**2)))
+            ent_LT_SVD.insert(i,sum(ss.entropy( Vc_i.T**2  )))
+
+    if metric=='var_comp':
+        for i in range(L_start,L_stop+1):
+            Uc_i = U[:, :i]
+            Vc_i = Vt[:i, :]
+            UVc_i = np.concatenate((Uc_i, Vc_i.T)) * np.sqrt((M+T)/2)
+            ica = FastICA(max_iter=10000, tol=0.000001) #, random_state = 1)
+
+            Xc_i, Yt_rec_i = np.split(ica.fit_transform(UVc_i) / np.sqrt((M+T)/2), [M])
+            Yc_i = Yt_rec_i.T
+            comp_XL = var_comp(betas_m,Yc_i)
+            comp_LT = var_comp(betas_m,Xc_i)
+            comp_XL_svd = var_comp(betas_m,Vc_i)
+            comp_LT_svd = var_comp(betas_m,Uc_i)
+            
+            if np.allclose(i, np.sum(Xc_i.T@Xc_i)) == False:
+                bad_L.append(i)
+                bad_L_diff.append(i-np.sum(Xc_i.T@Xc_i))
+            
+            ent_XL_GUIDE.insert(i,sum(ss.entropy(comp_XL)))
+            ent_XL_SVD.insert(i,sum(ss.entropy( comp_XL_svd  )))
+
+            ent_LT_GUIDE.insert(i,sum(ss.entropy(comp_LT)))
+            ent_LT_SVD.insert(i,sum(ss.entropy( comp_LT_svd  )))
+  
+    return ent_XL_GUIDE, ent_LT_GUIDE, ent_XL_SVD, ent_LT_SVD, bad_L, bad_L_diff
+
+
+
+
+#Monte Carlo approach for computing the p-values. Included for comparison with the closed-form approach. 
+# For applications, use logp_mat, which provides the closed-form solution
+def logp_vals_MC(data, W_XL, W_LT, iters=100):    # M x L and T x L matrices containing -log10(p-values) for every pair of variant/trait and latent
     import numpy as np
     import scipy.stats as ss
     M,L = W_XL.shape
@@ -148,3 +310,4 @@ def logp_vals_mat(data, W_XL, W_LT, iters=100):    # M x L and T x L matrices co
     logp_mat_TL = np.array(logp_mat_TL)
     
     return logp_mat_XL, logp_mat_TL
+
