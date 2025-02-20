@@ -152,7 +152,7 @@ def guide_infer(logp_mat_XL,logp_mat_TL, thr_T = 10, thr_L = 10, thr_X = 10):
 
 
 # plot the entropy of the weights for all models with num of latent factors between L_start and L_stop
-def entropy_plot(betas, L_start=1, L_stop=100, metric='contrib'):      # L_start, L_stop = values of numbers of latent factors, metric can be 
+def entropy_plot(betas, L_start=1, L_stop=100, step=1, metric='contrib'):      # L_start, L_stop = values of numbers of latent factors, metric can be 
                                                                        # 'contrib' or 'var_comp'
     import numpy as np
     from sklearn.decomposition import FastICA
@@ -176,7 +176,7 @@ def entropy_plot(betas, L_start=1, L_stop=100, metric='contrib'):      # L_start
     bad_L_diff = []
     
     if metric=='contrib':
-       for i in range(L_start,L_stop+1):
+       for i in range(L_start,L_stop+1, step):
             Uc_i = U[:, :i]
             Vc_i = Vt[:i, :]
             UVc_i = np.concatenate((Uc_i, Vc_i.T)) * np.sqrt((M+T)/2)
@@ -196,7 +196,7 @@ def entropy_plot(betas, L_start=1, L_stop=100, metric='contrib'):      # L_start
             ent_LT_SVD.insert(i,sum(ss.entropy( Vc_i.T**2  )))
 
     if metric=='var_comp':
-        for i in range(L_start,L_stop+1):
+        for i in range(L_start,L_stop+1, step):
             Uc_i = U[:, :i]
             Vc_i = Vt[:i, :]
             UVc_i = np.concatenate((Uc_i, Vc_i.T)) * np.sqrt((M+T)/2)
