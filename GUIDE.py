@@ -1,5 +1,5 @@
-# GUIDE model given an M x T matrix of summary statistics (`betas'), where M = number of genetic variants
-# and T is the number of traits
+# GUIDE model given an M x T matrix of summary statistics (`betas'), where M = number of genetic variants, 
+# T = the number of traits, and L = number of latent factors
 
 def guide(betas, L=100):
     import numpy as np
@@ -33,7 +33,7 @@ def contrib(W):
     M = max(W.shape)
     K = min(W.shape)
 
-    if W.shape[0] == M:     # ensure W is K x M
+    if W.shape[0] == M:     # ensure W is L x M
         W = W.T
     W_var = W**2
 
@@ -50,7 +50,7 @@ def contrib(W):
 def var_comp(betas,W):
     import numpy as np
     M = max(W.shape)
-    if W.shape[1] == M:     # ensure W is M x K
+    if W.shape[1] == M:     # ensure W is M x L
         W = W.T
     
     if betas.shape[0] == M:
@@ -98,6 +98,21 @@ def logp_mat(data, W_XL, W_LT):
     logp_mat_TL = np.array(logp_mat_TL)
 
     return logp_mat_XL, logp_mat_TL
+
+
+
+def idx_from_var(weight_value, weight_mat):                 # finds the index of a variant/trait given a certain weight/score value 
+    import numpy as np
+    return np.where(weight_mat == weight_value)[0][0]       # weight_mat is a matrix of weights/scores (usually MxL or LxT)
+
+
+def idx_from_var_list(weight_list, weight_mat):            # returns indices for a list of weights/scores
+    import numpy as np
+    idx_list = []
+    for i in range(len(weight_list)):
+        idx = idx_from_var(weight_list[i], weight_mat)
+        idx_list.append(idx)
+    return idx_list
 
 
 # automatic inference based on -logp values. Can also use the contribution scores or variance components as inputs instead of the logp matrices
@@ -220,6 +235,14 @@ def entropy_plot(betas, L_start=1, L_stop=100, step=1, metric='contrib'):      #
             ent_LT_SVD.insert(i,sum(ss.entropy( comp_LT_svd  )))
   
     return ent_XL_GUIDE, ent_LT_GUIDE, ent_XL_SVD, ent_LT_SVD, bad_L, bad_L_diff
+
+
+def wape(X_true,X_pred):       # weighted absolute percent error. X_true, X_true are vectors
+    import numpy as np
+    a = np.sum(np.abs(X_true - X_pred))
+    b = np.sum(np.abs(X_true))
+    c = np.divide(a, b, out=np.zeros_like(a, dtype=float), where=~np.isclose(b,np.zeros_like(b)))
+    return c
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
