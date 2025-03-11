@@ -63,7 +63,7 @@ def var_comp(betas,W):
 
 
 
-def logp_mat(data, W_XL, W_LT):
+def logw_mat(data, W_XL, W_LT):
     import numpy as np
     from scipy import stats
     M, L = W_XL.shape
@@ -74,30 +74,30 @@ def logp_mat(data, W_XL, W_LT):
     varcomp_XL_GUIDE = var_comp(data, W_LT)
 
     # Compute p-values using closed-form beta distribution
-    logp_mat_XL = []
-    logp_mat_TL = []
+    logw_mat_XL = []
+    logw_mat_TL = []
 
     for m in range(M):
-        log10p_list = []
+        log10w_list = []
         for l in range(L):
             s_obs = varcomp_XL_GUIDE[m, l]
-            p_val = stats.beta(1/2, (L-1)/2).sf(s_obs)
-            log10_p = -np.log10(p_val) if p_val > 0 else np.inf
-            log10p_list.append(log10_p)
-        logp_mat_XL.append(log10p_list)
-    logp_mat_XL = np.array(logp_mat_XL)
+            w_val = stats.beta(1/2, (L-1)/2).sf(s_obs)
+            log10_w = -np.log10(w_val) if w_val > 0 else np.inf
+            log10w_list.append(log10_w)
+        logw_mat_XL.append(log10w_list)
+    logw_mat_XL = np.array(logw_mat_XL)
 
     for t in range(T):
-        log10p_list = []
+        log10w_list = []
         for l in range(L):
             s_obs = varcomp_LT_GUIDE[t, l]
-            p_val = stats.beta(1/2, (L-1)/2).sf(s_obs)
-            log10_p = -np.log10(p_val) if p_val > 0 else np.inf
-            log10p_list.append(log10_p)
-        logp_mat_TL.append(log10p_list)
-    logp_mat_TL = np.array(logp_mat_TL)
+            w_val = stats.beta(1/2, (L-1)/2).sf(s_obs)
+            log10_w = -np.log10(w_val) if w_val > 0 else np.inf
+            log10w_list.append(log10_w)
+        logw_mat_TL.append(log10w_list)
+    logw_mat_TL = np.array(logw_mat_TL)
 
-    return logp_mat_XL, logp_mat_TL
+    return logw_mat_XL, logw_mat_TL
 
 
 
@@ -115,33 +115,33 @@ def idx_from_var_list(weight_list, weight_mat):            # returns indices for
     return idx_list
 
 
-# automatic inference based on -logp values. Can also use the contribution scores or variance components as inputs instead of the logp matrices
+# automatic inference based on -logw values. Can also use the contribution scores or variance components as inputs instead of the logw matrices
 
-def guide_infer(logp_mat_XL,logp_mat_TL, thr_T = 10, thr_L = 10, thr_X = 10): 
+def guide_infer(logw_mat_XL,logw_mat_TL, thr_T = 10, thr_L = 10, thr_X = 10): 
     import numpy as np
 
-    L = min(logp_mat_TL.shape)
+    L = min(logw_mat_TL.shape)
 
-    sort_logp_TL = np.sort(logp_mat_TL,axis=1)
-    max_logp_TL = sort_logp_TL.T[-1]                               # list of highest logp_TL value for every trait
-    sig_trait_logp = [x for x in max_logp_TL if x>thr_T]                 # traits with significant p-values in given GUIDE model
-    sig_trait_idx = idx_from_var_list(sig_trait_logp,logp_mat_TL)  # indices of those traits
-    sig_logp_mat_TL = logp_mat_TL[sig_trait_idx,:]                 # sub-matrix of logp_TL for those traits only
+    sort_logw_TL = np.sort(logw_mat_TL,axis=1)
+    max_logw_TL = sort_logw_TL.T[-1]                               # list of highest logw_TL value for every trait
+    sig_trait_logw = [x for x in max_logw_TL if x>thr_T]                 # traits with significant p-values in given GUIDE model
+    sig_trait_idx = idx_from_var_list(sig_trait_logw,logw_mat_TL)  # indices of those traits
+    sig_logw_mat_TL = logw_mat_TL[sig_trait_idx,:]                 # sub-matrix of logw_TL for those traits only
 
     sig_lat_idx = []
     sig_vars_idx = []
-    sig_lat_logp = []
-    sig_vars_logp = []
-    for i in range(sig_logp_mat_TL.shape[0]):
-        sig_logp_vals = [x for x in sig_logp_mat_TL[i] if x>thr_L]
-        sig_lat_logp.append(sig_logp_vals)
-        idx_list = idx_from_var_list(sig_logp_vals,sig_logp_mat_TL[i])      # significant latents for every trait with significant p-vals
+    sig_lat_logw = []
+    sig_vars_logw = []
+    for i in range(sig_logw_mat_TL.shape[0]):
+        sig_logw_vals = [x for x in sig_logw_mat_TL[i] if x>thr_L]
+        sig_lat_logw.append(sig_logw_vals)
+        idx_list = idx_from_var_list(sig_logw_vals,sig_logw_mat_TL[i])      # significant latents for every trait with significant p-vals
         sig_lat_idx.append( idx_list )
     
     for j in range(L):                                           # every significant variant for every latent
-            sig_logp_vals2 = [x for x in logp_mat_XL[:,j] if x>thr_X]
-            sig_vars_logp.append(sig_logp_vals2)
-            idx_list2 = idx_from_var_list(sig_logp_vals2,logp_mat_XL[:,j])   # significant variants for every latent with signficant p-vals
+            sig_logw_vals2 = [x for x in logw_mat_XL[:,j] if x>thr_X]
+            sig_vars_logw.append(sig_logw_vals2)
+            idx_list2 = idx_from_var_list(sig_logw_vals2,logw_mat_XL[:,j])   # significant variants for every latent with signficant p-vals
             sig_vars_idx.append(idx_list2)
 
     
@@ -160,7 +160,7 @@ def guide_infer(logp_mat_XL,logp_mat_TL, thr_T = 10, thr_L = 10, thr_X = 10):
         
     traits_per_lat = traits_per_sig_lat(sig_lat_idx, sig_trait_idx,L=L)
     
-    return traits_per_lat, sig_trait_idx, sig_lat_idx, sig_vars_idx, sig_trait_logp, sig_lat_logp, sig_vars_logp   
+    return traits_per_lat, sig_trait_idx, sig_lat_idx, sig_vars_idx, sig_trait_logw, sig_lat_logw, sig_vars_logw   
     # returns list of significant traits for every latent, and the indices of statistically significant traits, latents for those traits, and 
     # variants for those latents, as well as their corresponding -log10(p) values
 
@@ -248,9 +248,9 @@ def wape(X_true,X_pred):       # weighted absolute percent error. X_true, X_true
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Functions below are not routinely used for analyses with GUIDE and are included in case they may be helpful in some applications
 
-#Monte Carlo approach for computing the p-values. Included for comparison with the closed-form approach. 
-# For applications, use logp_mat, which provides the closed-form solution
-def logp_vals_MC(data, W_XL, W_LT, iters=100):    # M x L and T x L matrices containing -log10(p-values) for every pair of variant/trait and latent
+#Monte Carlo approach for computing the w-values. Included for comparison with the closed-form approach. 
+# For applications, use logw_mat, which provides the closed-form solution
+def logw_vals_MC(data, W_XL, W_LT, iters=100):    # M x L and T x L matrices containing -log10(w-values) for every pair of variant/trait and latent
     import numpy as np
     import scipy.stats as ss
     M,L = W_XL.shape
@@ -273,35 +273,35 @@ def logp_vals_MC(data, W_XL, W_LT, iters=100):    # M x L and T x L matrices con
     W_IXL_var = np.array(W_IXL_var)
     W_ITL_var = np.array(W_ITL_var)
     
-    logp_mat_XL = []
-    logp_mat_TL = []
+    logw_mat_XL = []
+    logw_mat_TL = []
 
     for m in range(M):
-        log10p_list = []
+        log10w_list = []
         for l in range(L):
             mean = np.mean(W_IXL_var[:,m,l])
             std = np.std(W_IXL_var[:,m,l])
-            ln_p = -ss.norm(mean, std).logsf(varcomp_XL_GUIDE[m,l])
-            log10_p = ln_p/np.log(10)
-            log10p_list.append(log10_p)        
-        logp_mat_XL.append(log10p_list)
-    logp_mat_XL = np.array(logp_mat_XL)
+            ln_w = -ss.norm(mean, std).logsf(varcomp_XL_GUIDE[m,l])
+            log10_w = ln_w/np.log(10)
+            log10w_list.append(log10_w)        
+        logw_mat_XL.append(log10w_list)
+    logw_mat_XL = np.array(logw_mat_XL)
     
     for t in range(T):
-        log10p_list = []
+        log10w_list = []
         for l in range(L):
             mean = np.mean(W_ITL_var[:,t,l])
             std = np.std(W_ITL_var[:,t,l])
-            ln_p = -ss.norm(mean, std).logsf(varcomp_LT_GUIDE[t,l])
-            log10_p = ln_p/np.log(10)
-            log10p_list.append(log10_p)    
-        logp_mat_TL.append(log10p_list)
-    logp_mat_TL = np.array(logp_mat_TL)
+            ln_w = -ss.norm(mean, std).logsf(varcomp_LT_GUIDE[t,l])
+            log10_w = ln_w/np.log(10)
+            log10w_list.append(log10_w)    
+        logw_mat_TL.append(log10w_list)
+    logw_mat_TL = np.array(logw_mat_TL)
     
-    return logp_mat_XL, logp_mat_TL
+    return logw_mat_XL, logw_mat_TL
 
-# computes a p-value (using the Monte Carlo method vs. the closed form above) for every trait based on the contribution of the top_L latent factors 
-def logp_vals_MC(data, W_XL, W_LT, top_L=3, iters=1000):    # compute -log10(p-values) for every trait given variance contributions of top_L latents
+# computes a w-value (using the Monte Carlo method vs. the closed form above) for every trait based on the contribution of the top_L latent factors 
+def logw_vals_MC(data, W_XL, W_LT, top_L=3, iters=1000):    # compute -log10(w-values) for every trait given variance contributions of top_L latents
     import numpy as np
     import scipy.stats as ss
 
@@ -328,12 +328,12 @@ def logp_vals_MC(data, W_XL, W_LT, top_L=3, iters=1000):    # compute -log10(p-v
     
     var_comp_iters = np.array(var_comp_iters)
     
-    log10p_list = []
+    log10w_list = []
     for trait in range(T):
         mean_T = np.mean(var_comp_iters.T[trait])
         std_T = np.std(var_comp_iters.T[trait])
-        ln_p = -ss.norm(mean_T, std_T).logsf(varcomp_LT_GUIDE_list[trait])
-        log10_p = ln_p/np.log(10)
-        log10p_list.append(log10_p)
+        ln_w = -ss.norm(mean_T, std_T).logsf(varcomp_LT_GUIDE_list[trait])
+        log10_w = ln_w/np.log(10)
+        log10w_list.append(log10_w)
         
-    return log10p_list
+    return log10w_list
