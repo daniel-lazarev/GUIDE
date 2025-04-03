@@ -1,31 +1,41 @@
 # GUIDE model given an M x T matrix of summary statistics (`betas'), where M = number of genetic variants, 
 # T = the number of traits, and L = number of latent factors
 
-def guide(betas, L=100):
+def guide(betas, L=100, mean_center = True, standardize = False):
     import numpy as np
     from sklearn.decomposition import FastICA
     M = max(betas.shape)
+    T = min(betas.shape)
+    betas_m = betas
 
     if betas_m.shape[1] == M:     # ensure betas is M x T
         betas_m = betas_m.T
         
-    betas_m = betas - np.mean(betas, axis = 0)
-    betas_m = betas_m - np.mean(betas_m, axis = 1)[:,np.newaxis]   # mean centering the sum stats
+    if mean_center:
+        betas_m = betas - np.mean(betas, axis = 0)
+        betas_m = betas_m - np.mean(betas_m, axis = 1)[:,np.newaxis]   # mean centering the sum stats
     
-    U, S, Vt = np.linalg.svd(betas_m, full_matrices=False)       # full SVD of G
+    def z_standardize(x):
+        return (x - np.mean(x)) / np.std(x)
+    
+    if standardize:
+        betas_m = z_standardize(betas_m)
+        
+    U, S, Vt = np.linalg.svd(betas_m, full_matrices=False)       # full SVD of betas
 
     Uc = U[:, :L]
     Sc = S[:L]
     Vc = Vt[:L, :]
-    UVc = np.concatenate((Uc, Vc.T)) / np.sqrt(2)
+    UVc = np.concatenate((Uc, Vc.T)) * np.sqrt((M+T)/2) #/ np.sqrt(2)
     
-    ica = FastICA(max_iter=10000, tol=0.000001) #, random_state = 1)
+    ica = FastICA(max_iter=10000, tol=0.000001)
 
-    W_XL, W_LT_t = np.split(ica.fit_transform(UVc) * np.sqrt(2), [M])
+    W_XL, W_LT_t = np.split(ica.fit_transform(UVc) /np.sqrt((M+T)/2) , [M])   # * np.sqrt(2)
     W_LT = W_LT_t.T
     mix = ica.mixing_
     
     return W_XL, W_LT, Sc, mix
+
 
 # Computing the contribution scores given GUIDE weights
 def contrib(W):  
