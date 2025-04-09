@@ -73,39 +73,27 @@ def var_comp(betas,W):
 
 
 
-def logw_mat(data, W_XL, W_LT):
+def logw_mat(data, W_XL, W_LT):  
     import numpy as np
     from scipy import stats
+
     M, L = W_XL.shape
     T = W_LT.shape[1]
 
     # Compute variance contributions
-    varcomp_LT_GUIDE = var_comp(data, W_XL)
-    varcomp_XL_GUIDE = var_comp(data, W_LT)
+    varcomp_LT_GUIDE = var_comp(data, W_XL)   # Shape: T x L
+    varcomp_XL_GUIDE = var_comp(data, W_LT)   # Shape: M x L
 
-    # Compute p-values using closed-form beta distribution
-    logw_mat_XL = []
-    logw_mat_TL = []
+    # Compute the beta distribution survival function values
+    beta_sf = lambda s: stats.beta(1/2, (L-1)/2).sf(s)
+    
+    # Vectorized survival function and log10 transformation for XL
+    w_vals_XL = beta_sf(varcomp_XL_GUIDE)
+    logw_mat_XL = -np.log10(np.clip(w_vals_XL, a_min=1e-300, a_max=None))
 
-    for m in range(M):
-        log10w_list = []
-        for l in range(L):
-            s_obs = varcomp_XL_GUIDE[m, l]
-            w_val = stats.beta(1/2, (L-1)/2).sf(s_obs)
-            log10_w = -np.log10(w_val) if w_val > 0 else np.inf
-            log10w_list.append(log10_w)
-        logw_mat_XL.append(log10w_list)
-    logw_mat_XL = np.array(logw_mat_XL)
-
-    for t in range(T):
-        log10w_list = []
-        for l in range(L):
-            s_obs = varcomp_LT_GUIDE[t, l]
-            w_val = stats.beta(1/2, (L-1)/2).sf(s_obs)
-            log10_w = -np.log10(w_val) if w_val > 0 else np.inf
-            log10w_list.append(log10_w)
-        logw_mat_TL.append(log10w_list)
-    logw_mat_TL = np.array(logw_mat_TL)
+    # Vectorized survival function and log10 transformation for TL
+    w_vals_TL = beta_sf(varcomp_LT_GUIDE)
+    logw_mat_TL = -np.log10(np.clip(w_vals_TL, a_min=1e-300, a_max=None))
 
     return logw_mat_XL, logw_mat_TL
 
