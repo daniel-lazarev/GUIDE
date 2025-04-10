@@ -64,10 +64,12 @@ The function returns four matrices:
 ```python
 from GUIDE import guide, var_comp, contrib, logw_mat, guide_infer, entropy_plot
 ```
+Run GUIDE with 50 components:
 ```python
-# Run GUIDE with 50 components
 W_XL, W_LT, Sc, mix = guide(betas, L=50)
 ```
+For a dataset with `M=200000` variants and `T=2000` traits, this runs in <5 mins on a standard desktop computer. The rest of the functions below (excluding `entropy_plot`) run in <1min. 
+
 Using the weights, we can compute the variance components and contributions scores to assess the loadings of latent factors on variants and on traits (as in Figures 2 and 3 in the paper).
 To compute the variance components and contribution scores:
 ```python
