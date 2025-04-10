@@ -120,6 +120,7 @@ plt.xlabel('Number of latent factors',size=14)
 plt.title("Entropy difference, $\\mathcal{X} \\rightarrow \\mathcal{L}$, UKB",size=17)
 plt.show()
 ```
+Other functions and applications can be explored in the Jupyter notebooks and in the paper.
 
 ### Contributing
 Contributions are welcome! Please fork the repository and submit a pull request with your enhancements or bug fixes.
