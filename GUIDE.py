@@ -248,6 +248,16 @@ def wape(X_true,X_pred):       # weighted absolute percent error. X_true, X_true
     c = np.divide(a, b, out=np.zeros_like(a, dtype=float), where=~np.isclose(b,np.zeros_like(b)))
     return c
 
+# aggregate w-values from one layer to a single node in another using a weighed harmonic mean
+# agg w-val computed as inverse of arithmetic mean of weighted 1/w values
+def agg_logw_val(source_nodes, target_node, logw_mat, W):   # source_nodes = indices of a group of nodes in a given layer, target_node = node that                                                                all nodes in source_node connect to
+                                                        # logw_mat = X->L or L->T matrix of -log10(w) values, W = corresponding weight matrix; both                                                           must be oriented with source nodes in first dimension and target node in second
+    logw_vec = logw_mat[source_nodes,target_node]
+    W_vec2 = W[source_nodes,target_node]**2
+    w_inv = np.average(10**(logw_vec), weights = W_vec2)
+    logw = np.log10(w_inv)
+    return logp
+
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Functions below are not routinely used for analyses with GUIDE and are included in case they may be helpful in some applications
