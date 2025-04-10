@@ -40,26 +40,33 @@ def guide(betas, L=100, mean_center = True, standardize = False, SE = None):
 
 
 # Computing the contribution scores given GUIDE weights
-def contrib(W):  
+def contrib(W):
     import numpy as np
-    M = max(W.shape)
-    K = min(W.shape)
-
-    if W.shape[0] == M:     # ensure W is L x M
+    if W.shape[0] > W.shape[1]:     # Ensure W is L x M, where M is the larger dimension
         W = W.T
-    W_var = W**2
-
-    W_var_sort = np.zeros((K,M))
+    return np.square(W)
     
-    for i in range(K):
-        W_var_sort[i,:] = np.sort(W_var[i,:])[::-1]
-    W_var_cum=np.cumsum(W_var_sort,axis=1)/np.sum(W_var_sort,axis=1)[:,np.newaxis]
 
-    return W_var_sort, W_var_cum
+# Contribution scores sorted in descending order and cumulative values
+def contrib_sort_cum(W):
+    import numpy as np
+    # Ensure W is L x M with M >= L
+    if W.shape[0] > W.shape[1]:
+        W = W.T
+
+    W_var = np.square(W)  # Elementwise square
+    W_var_sort = -np.sort(-W_var, axis=1)  # Sort each row descending
+
+    # Normalize cumulative sum across rows
+    row_sums = np.sum(W_var_sort, axis=1, keepdims=True)
+    W_var_cum = np.cumsum(W_var_sort, axis=1) / row_sums
+
+    return W_var, W_var_sort, W_var_cum
+
+
 
 # Computing the genetic variance components given GUIDE weights
 # Note: inputing W_XL computes the L->T variance components (and vice versa, with W_LT corresponding to X->L); see preprint for more details
-
 def var_comp(betas, W):
     import numpy as np
 
