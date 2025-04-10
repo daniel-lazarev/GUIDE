@@ -1,7 +1,7 @@
 # GUIDE model given an M x T matrix of summary statistics (`betas'), where M = number of genetic variants, 
 # T = the number of traits, and L = number of latent factors
 
-def guide(betas, L=100, mean_center = True, standardize = False):
+def guide(betas, L=100, mean_center = True, standardize = False, SE = None):
     import numpy as np
     from sklearn.decomposition import FastICA
     M = max(betas.shape)
@@ -10,16 +10,18 @@ def guide(betas, L=100, mean_center = True, standardize = False):
 
     if betas_m.shape[1] == M:     # ensure betas is M x T
         betas_m = betas_m.T
-        
+    
+    if SE is not None:
+        if SE.shape != betas_m.shape:
+            raise ValueError("Shape of SE must match shape of betas.")
+        betas_m = betas_m / SE
+    
     if mean_center:
-        betas_m = betas - np.mean(betas, axis = 0)
-        betas_m = betas_m - np.mean(betas_m, axis = 1)[:,np.newaxis]   # mean centering the sum stats
-    
-    def z_standardize(x):
-        return (x - np.mean(x)) / np.std(x)
-    
+        betas_m = betas_m - np.mean(betas_m, axis=0)
+        betas_m = betas_m - np.mean(betas_m, axis=1, keepdims=True)
+
     if standardize:
-        betas_m = z_standardize(betas_m)
+        betas_m = (betas_m - np.mean(betas_m)) / np.std(betas_m)
         
     U, S, Vt = np.linalg.svd(betas_m, full_matrices=False)       # full SVD of betas
 
@@ -57,18 +59,22 @@ def contrib(W):
 
 # Computing the genetic variance components given GUIDE weights
 # Note: inputing W_XL computes the L->T variance components (and vice versa, with W_LT corresponding to X->L); see preprint for more details
-def var_comp(betas,W):
+
+def var_comp(betas, W):
     import numpy as np
-    M = max(W.shape)
-    if W.shape[1] == M:     # ensure W is M x L
-        W = W.T
-    
-    if betas.shape[0] == M:
-        G = betas.T @ W
-    else:
-        G = betas @ W
-    var_comp = (G**2).T/np.sum(G**2,axis=1)
-    var_comp = var_comp.T
+
+    # Ensure W is M x L
+    if W.shape[1] > W.shape[0]:
+        W = W.T  # Transpose to make shape (M x L)
+
+    # Match dimensions for matrix multiplication
+    G = betas.T @ W if betas.shape[0] == W.shape[0] else betas @ W
+
+    # Compute variance components
+    G_squared = G ** 2
+    row_sums = np.sum(G_squared, axis=1, keepdims=True)
+    var_comp = G_squared / row_sums
+
     return var_comp
 
 
