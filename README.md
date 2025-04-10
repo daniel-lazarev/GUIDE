@@ -65,8 +65,8 @@ The function returns four matrices:
 from GUIDE import guide, logw_mat, guide_infer
 ```
 ```python
-# Run GUIDE with 50 components, mean centering, and standardization
-W_XL, W_LT, Sc, mix = guide(betas, L=50, mean_center=True, standardize=True)
+# Run GUIDE with 50 components
+W_XL, W_LT, Sc, mix = guide(betas, L=50)
 ```
 ```python
 # Compute the weight significance values (w-values) for the weights
