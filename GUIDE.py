@@ -165,8 +165,8 @@ def guide_infer(logw_mat_XL,logw_mat_TL, thr_T = 10, thr_L = 10, thr_X = 10):
     traits_per_lat = traits_per_sig_lat(sig_lat_idx, sig_trait_idx,L=L)
     
     return traits_per_lat, sig_trait_idx, sig_lat_idx, sig_vars_idx, sig_trait_logw, sig_lat_logw, sig_vars_logw   
-    # returns list of significant traits for every latent, and the indices of statistically significant traits, latents for those traits, and 
-    # variants for those latents, as well as their corresponding -log10(p) values
+    # returns list of significant traits for every latent, the indices of statistically significant traits, latents for those traits, and 
+    # variants for those latents, as well as their corresponding -log10(w) values
 
 
 
