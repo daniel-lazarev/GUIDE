@@ -13,8 +13,8 @@ Here we maintaining the code for GUIDE, including implementations of the main al
 - macOS 11+
 - Windows 10+
 
-## Non-standard Hardware:
-- None required. Runs on standard desktop hardware.
+## Hardware:
+- Runs on standard desktop hardware.
 - For large datasets, increased RAM (>8 GB) is recommended for performance.
 
 ## Installation
@@ -32,10 +32,9 @@ cd GUIDE
 ```
 
 ## Usage
-Prepare Your Data: Ensure your genetic data is formatted as required by GUIDE.py.
 
 ### Function: `guide`
-The `guide(betas,L)` function builds a GUIDE model of the given summary statistics matrix (`betas`) using with latent dimensionality, `L`.
+The `guide()` function builds a GUIDE model of the given summary statistics matrix (`betas`) using with latent dimensionality, `L`.
 
 ### Parameters:
 - `betas` (numpy array): A matrix of summary statistics (e.g., beta coefficients, z-scores) of shape `(M, T)`, where `M` is the number of variants (e.g., genes, SNPs) and `T` is the number of traits.
