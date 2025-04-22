@@ -127,8 +127,6 @@ def idx_from_var_list(weight_list, weight_mat):            # returns indices for
 
 
 # automatic inference based on -logw values. Can also use the contribution scores or variance components as inputs instead of the logw matrices
-
-
 def guide_infer(logw_mat_XL, logw_mat_TL, thr_T=10, thr_L=10, thr_X=10):
     """
     Automatic inference based on -log10(weight) values from GUIDE model outputs.
