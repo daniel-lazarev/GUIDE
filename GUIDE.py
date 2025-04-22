@@ -128,50 +128,53 @@ def idx_from_var_list(weight_list, weight_mat):            # returns indices for
 
 # automatic inference based on -logw values. Can also use the contribution scores or variance components as inputs instead of the logw matrices
 
-def guide_infer(logw_mat_XL,logw_mat_TL, thr_T = 10, thr_L = 10, thr_X = 10): 
+
+def guide_infer(logw_mat_XL, logw_mat_TL, thr_T=10, thr_L=10, thr_X=10):
+    """
+    Automatic inference based on -log10(weight) values from GUIDE model outputs.
+
+    Parameters:
+    - logw_mat_XL: M x L matrix of -log10(weight) values for variants (rows) and latents (columns)
+    - logw_mat_TL: T x L matrix of -log10(weight) values for traits (rows) and latents (columns)
+    - thr_T: significance threshold for traits
+    - thr_L: significance threshold for latents per trait
+    - thr_X: significance threshold for variants per latent
+
+    Returns:
+    - traits_per_lat: list of significant trait indices for each latent
+    - sig_trait_idx: list of indices of significant traits
+    - sig_lat_idx: list of latent indices for each significant trait
+    - sig_vars_idx: list of variant indices for each latent
+    - sig_trait_logw: list of max -log10(weight) values for each significant trait
+    - sig_lat_logw: list of lists of -log10(weight) values for significant latents per trait
+    - sig_vars_logw: list of lists of -log10(weight) values for significant variants per latent
+    """
     import numpy as np
 
-    L = min(logw_mat_TL.shape)
+    L = logw_mat_TL.shape[1]
 
-    sort_logw_TL = np.sort(logw_mat_TL,axis=1)
-    max_logw_TL = sort_logw_TL.T[-1]                               # list of highest logw_TL value for every trait
-    sig_trait_logw = [x for x in max_logw_TL if x>thr_T]                 # traits with significant p-values in given GUIDE model
-    sig_trait_idx = idx_from_var_list(sig_trait_logw,logw_mat_TL)  # indices of those traits
-    sig_logw_mat_TL = logw_mat_TL[sig_trait_idx,:]                 # sub-matrix of logw_TL for those traits only
+    # Identify significant traits based on max logw per trait
+    max_logw_TL = np.max(logw_mat_TL, axis=1)
+    sig_trait_idx = np.where(max_logw_TL > thr_T)[0]
+    sig_trait_logw = max_logw_TL[sig_trait_idx]
+    sig_logw_mat_TL = logw_mat_TL[sig_trait_idx, :]
 
-    sig_lat_idx = []
-    sig_vars_idx = []
-    sig_lat_logw = []
-    sig_vars_logw = []
-    for i in range(sig_logw_mat_TL.shape[0]):
-        sig_logw_vals = [x for x in sig_logw_mat_TL[i] if x>thr_L]
-        sig_lat_logw.append(sig_logw_vals)
-        idx_list = idx_from_var_list(sig_logw_vals,sig_logw_mat_TL[i])      # significant latents for every trait with significant p-vals
-        sig_lat_idx.append( idx_list )
-    
-    for j in range(L):                                           # every significant variant for every latent
-            sig_logw_vals2 = [x for x in logw_mat_XL[:,j] if x>thr_X]
-            sig_vars_logw.append(sig_logw_vals2)
-            idx_list2 = idx_from_var_list(sig_logw_vals2,logw_mat_XL[:,j])   # significant variants for every latent with signficant p-vals
-            sig_vars_idx.append(idx_list2)
+    # Identify significant latents for each significant trait
+    sig_lat_idx = [np.where(row > thr_L)[0].tolist() for row in sig_logw_mat_TL]
+    sig_lat_logw = [row[row > thr_L].tolist() for row in sig_logw_mat_TL]
 
-    
-    # returns list of significant traits for each latent, as computed by guide_infer
-    # list given for every latent, so empty list signifies no significant traits for that latent with the given significance threshold
-    def traits_per_sig_lat(sig_lat_idx, sig_trait_idx,L=100):     
-        traits_for_lat = []
-        for lat in range(L):
-            sig_trait_per_lat = []
-            for i,x in enumerate(sig_lat_idx):
-                for j in range(len(x)):
-                    if x[j]==lat:
-                        sig_trait_per_lat.append(sig_trait_idx[i])
-            traits_for_lat.append(sig_trait_per_lat) 
-        return traits_for_lat
-        
-    traits_per_lat = traits_per_sig_lat(sig_lat_idx, sig_trait_idx,L=L)
-    
-    return traits_per_lat, sig_trait_idx, sig_lat_idx, sig_vars_idx, sig_trait_logw, sig_lat_logw, sig_vars_logw   
+    # Identify significant variants for each latent
+    sig_vars_idx = [np.where(logw_mat_XL[:, j] > thr_X)[0].tolist() for j in range(L)]
+    sig_vars_logw = [logw_mat_XL[idx, j].tolist() for j, idx in enumerate(sig_vars_idx)]
+
+    # Build mapping from latents to traits
+    traits_per_lat = [[] for _ in range(L)]
+    for trait_i, lat_list in zip(sig_trait_idx, sig_lat_idx):
+        for lat in lat_list:
+            traits_per_lat[lat].append(trait_i)
+
+    return traits_per_lat, sig_trait_idx.tolist(), sig_lat_idx, sig_vars_idx, sig_trait_logw.tolist(), sig_lat_logw, sig_vars_logw
+ 
     # returns list of significant traits for every latent, the indices of statistically significant traits, latents for those traits, and 
     # variants for those latents, as well as their corresponding -log10(w) values
 
