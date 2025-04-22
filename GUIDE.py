@@ -129,11 +129,11 @@ def idx_from_var_list(weight_list, weight_mat):            # returns indices for
 # automatic inference based on -logw values. Can also use the contribution scores or variance components as inputs instead of the logw matrices
 def guide_infer(logw_mat_XL, logw_mat_TL, thr_T=10, thr_L=10, thr_X=10):
     """
-    Automatic inference based on -log10(weight) values from GUIDE model outputs.
+    Automatic inference based on -log10(w) values from GUIDE model outputs.
 
     Parameters:
-    - logw_mat_XL: M x L matrix of -log10(weight) values for variants (rows) and latents (columns)
-    - logw_mat_TL: T x L matrix of -log10(weight) values for traits (rows) and latents (columns)
+    - logw_mat_XL: M x L matrix of -log10(w) values for variants (rows) and latents (columns)
+    - logw_mat_TL: T x L matrix of -log10(w) values for traits (rows) and latents (columns)
     - thr_T: significance threshold for traits
     - thr_L: significance threshold for latents per trait
     - thr_X: significance threshold for variants per latent
@@ -172,10 +172,6 @@ def guide_infer(logw_mat_XL, logw_mat_TL, thr_T=10, thr_L=10, thr_X=10):
             traits_per_lat[lat].append(trait_i)
 
     return traits_per_lat, sig_trait_idx.tolist(), sig_lat_idx, sig_vars_idx, sig_trait_logw.tolist(), sig_lat_logw, sig_vars_logw
- 
-    # returns list of significant traits for every latent, the indices of statistically significant traits, latents for those traits, and 
-    # variants for those latents, as well as their corresponding -log10(w) values
-
 
 
 # plot the entropy of the weights for all models with num of latent factors between L_start and L_stop
