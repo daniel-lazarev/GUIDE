@@ -260,7 +260,7 @@ def agg_logw_val(source_nodes, target_node, logw_mat, W):   # source_nodes = ind
     W_vec2 = W[source_nodes,target_node]**2
     w_inv = np.average(10**(logw_vec), weights = W_vec2)
     logw = np.log10(w_inv)
-    return logp
+    return logw
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
