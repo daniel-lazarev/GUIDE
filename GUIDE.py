@@ -263,6 +263,163 @@ def agg_logw_val(source_nodes, target_node, logw_mat, W):   # source_nodes = ind
     return logw
 
 
+
+# Both functions below to print and save a file with, for a given trait, the list of top latent factors for it, and for each 
+# latent factor, the top variants and traits loading onto it, 
+# everything based on user-provided thresholds, and all model weight with their corresponding -log(w) values
+def extract_latent_structure(
+    trait_index,
+    betas,
+    XL, LT,
+    logw_XL, logw_TL,
+    thr_X=10, thr_L=10, thr_T=10,
+    weights='var_comp',   # other option 'contrib'
+    variant_labels=None,
+    trait_labels=None
+):
+    import numpy as np
+
+    # Ensure numpy arrays
+    XL = np.asarray(XL)
+    LT = np.asarray(LT)
+    logw_XL = np.asarray(logw_XL)
+    logw_TL = np.asarray(logw_TL)
+    betas = np.asarray(betas)
+
+    # Pre-convert labels for faster access
+    if variant_labels is not None:
+        variant_labels = np.asarray(variant_labels)
+    if trait_labels is not None:
+        trait_labels = np.asarray(trait_labels)
+
+    # Compute variance components
+    if weights=='var_comp':
+        varcomp_XL = var_comp(betas, LT)     # M x L
+        varcomp_TL = var_comp(betas, XL)     # T x L
+
+        # Compute variance components
+    if weights=='contrib':
+        varcomp_XL = contrib(XL).T     # M x L
+        varcomp_TL = contrib(LT).T     # T x L
+        
+    # Latent contributions to the trait of interest
+    latent_varcomp_to_trait = varcomp_TL[trait_index, :]
+    significant_latents = np.flatnonzero(logw_TL[trait_index, :] > thr_L)
+
+    # Order latents by descending variance contribution
+    sorted_latents = significant_latents[np.argsort(-latent_varcomp_to_trait[significant_latents])]
+
+    results = []
+
+    for latent_idx in sorted_latents:
+        # Pre-fetch slice for this latent
+        logw_XL_latent = logw_XL[:, latent_idx]
+        varcomp_XL_latent = varcomp_XL[:, latent_idx]
+        sig_var_idx = np.flatnonzero(logw_XL_latent > thr_X)
+
+        # Vectorized extraction of variant data
+        var_data = [{
+            'index': int(vi),
+            'label': variant_labels[vi] if variant_labels is not None else None,
+            'var_comp': float(varcomp_XL_latent[vi]),
+            'logw': float(logw_XL_latent[vi])
+        } for vi in sig_var_idx]
+
+        var_data.sort(key=lambda d: -d['var_comp'])
+
+        # Same for traits
+        logw_TL_latent = logw_TL[:, latent_idx]
+        varcomp_TL_latent = varcomp_TL[:, latent_idx]
+        sig_trait_idx = np.flatnonzero(logw_TL_latent > thr_T)
+
+        trait_data = [{
+            'index': int(ti),
+            'label': trait_labels[ti] if trait_labels is not None else None,
+            'var_comp': float(varcomp_TL_latent[ti]),
+            'logw': float(logw_TL_latent[ti])
+        } for ti in sig_trait_idx]
+
+        trait_data.sort(key=lambda d: -d['var_comp'])
+
+        results.append({
+            'input_trait_index': int(trait_index),
+            'input_trait_label': trait_labels[trait_index] if trait_labels is not None else None,
+            'latent_index': int(latent_idx),
+            'latent_var_to_trait': float(latent_varcomp_to_trait[latent_idx]),
+            'variants': var_data,
+            'traits': trait_data
+        })
+
+    return results
+
+
+def save_results_to_txt(results, filename="latent_results.txt"):
+    import pandas as pd
+
+    with open(filename, "w") as f:
+        for latent in results:
+            label = latent.get('input_trait_label', None)
+            idx = latent['input_trait_index']
+            if label is None or label == "":
+                trait_title = f"Trait index = {idx}"
+            else:
+                trait_title = f"{label} (index = {idx})"
+
+            latent_idx = latent['latent_index']
+
+            f.write(f"Input Trait: {trait_title}\n")
+            f.write(f"==== Latent Component {latent_idx} (Variance component to Trait: {latent['latent_var_to_trait']:.4f}) ====\n\n")
+
+            # Variants table
+            df_variants = pd.DataFrame(latent['variants'])
+            df_variants = df_variants.rename(columns={
+                'index': 'Index',
+                'label': 'Label',
+                'var_comp': 'Weight',
+                'logw': '-log(w)'
+            })
+
+            # Traits table
+            df_traits = pd.DataFrame(latent['traits'])
+            df_traits = df_traits.rename(columns={
+                'index': 'Index',
+                'label': 'Label',
+                'var_comp': 'Weight',
+                'logw': '-log(w)'
+            })
+
+            # Determine max number of rows
+            max_rows = max(len(df_variants), len(df_traits))
+
+            # Pad and reset index explicitly
+            df_variants = df_variants.reindex(range(max_rows)).fillna("")
+            df_traits = df_traits.reindex(range(max_rows)).fillna("")
+
+            # ✅ Convert Index to int *after* padding
+            df_variants["Index"] = df_variants["Index"].apply(
+                lambda x: str(int(x)) if isinstance(x, (int, float)) and x != "" else x
+            )
+
+            # Create manual index column
+            row_numbers = pd.Series(range(1, max_rows + 1), name="No.")
+
+            # Concatenate index as string column
+            df_combined = pd.concat([
+                row_numbers.astype(str), df_variants,
+                pd.DataFrame([""] * max_rows, columns=["   "]),
+                pd.DataFrame([""] * max_rows, columns=["   "]),
+                pd.DataFrame([""] * max_rows, columns=["   "]),
+                df_traits
+            ], axis=1)
+
+            # Header
+            f.write("Variants".ljust(60) + "Traits\n")
+            f.write(df_combined.to_string(index=False, na_rep="") + "\n\n")
+
+
+
+
+
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # Functions below are not routinely used for analyses with GUIDE and are included in case they may be helpful in some applications
 
