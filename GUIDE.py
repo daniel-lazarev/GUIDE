@@ -395,7 +395,6 @@ def save_results_to_txt(results, filename="latent_results.txt"):
             df_variants = df_variants.reindex(range(max_rows)).fillna("")
             df_traits = df_traits.reindex(range(max_rows)).fillna("")
 
-            # ✅ Convert Index to int *after* padding
             df_variants["Index"] = df_variants["Index"].apply(
                 lambda x: str(int(x)) if isinstance(x, (int, float)) and x != "" else x
             )
