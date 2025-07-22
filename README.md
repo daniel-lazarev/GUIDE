@@ -62,7 +62,7 @@ The function returns four matrices:
 
 ### Example Usage:
 ```python
-from GUIDE import guide, var_comp, contrib, logw_mat, guide_infer, entropy_plot
+from GUIDE import guide, var_comp, contrib, logw_mat, guide_infer, entropy_plot, extract_latent_structure, save_results_to_txt
 ```
 Run GUIDE with 50 components:
 ```python
@@ -122,6 +122,25 @@ plt.xlabel('Number of latent factors',size=14)
 plt.title("Entropy difference, $\\mathcal{X} \\rightarrow \\mathcal{L}$, UKB",size=17)
 plt.show()
 ```
+
+The last two functions used here serve to print and save a file that includes, for a user-given trait, the list of top latent factors for it, and for each of those latent factors, the top variants and traits loading onto it — all based on user-provided thresholds, and with all listed model weight with their corresponding `-log(w)` values. 
+For example, here is a snippet creating a latent summary file for the trait at index 100:
+```python
+result = extract_latent_structure(
+    trait_index=100,
+    betas=betas,
+    XL=W_XL,
+    LT=W_LT,
+    logw_XL=logw_mat_XL,
+    logw_TL=logw_mat_TL,
+    thr_X=5, thr_L=5, thr_T=5,
+    weights='var_comp',
+    variant_labels=vars_labels,
+    trait_labels=trait_labels
+)
+save_results_to_txt(result, filename="GUIDE_summary_T=100.txt")
+```
+
 Other functions and applications can be explored in the Jupyter notebooks and in the paper.
 
 ### Contributing
